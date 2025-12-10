@@ -170,6 +170,9 @@ class NavigationGUI:
             variable=self.show_depth_var
         ).pack(side=tk.LEFT, padx=5)
 
+        # Audio controls
+        self._build_audio_controls(control_frame)
+
     def _build_status_bar(self, parent):
         """Build status bar"""
         status_frame = ttk.Frame(parent)
@@ -182,6 +185,60 @@ class NavigationGUI:
             anchor=tk.W
         )
         self.status_label.pack(fill=tk.X)
+
+    def _build_audio_controls(self, parent):
+        """Build audio feedback controls"""
+        audio_frame = ttk.LabelFrame(parent, text="Audio Settings", padding="5")
+        audio_frame.grid(row=3, column=0, columnspan=3, pady=5, sticky=(tk.W, tk.E))
+
+        # Enable/Disable audio
+        self.audio_enabled_var = tk.BooleanVar(value=config.ENABLE_AUDIO)
+        ttk.Checkbutton(
+            audio_frame,
+            text="Enable Voice Guidance",
+            variable=self.audio_enabled_var,
+            command=self.toggle_audio
+        ).grid(row=0, column=0, padx=5, sticky=tk.W)
+
+        # Test audio button
+        ttk.Button(
+            audio_frame,
+            text="Test Audio",
+            command=self.test_audio
+        ).grid(row=0, column=1, padx=5)
+
+        # Audio status
+        self.audio_status_label = ttk.Label(
+            audio_frame,
+            text="Audio: Ready" if config.ENABLE_AUDIO else "Audio: Disabled",
+            foreground="green" if config.ENABLE_AUDIO else "gray"
+        )
+        self.audio_status_label.grid(row=0, column=2, padx=10)
+
+    def toggle_audio(self):
+        """Toggle audio on/off"""
+        enabled = self.audio_enabled_var.get()
+        config.ENABLE_AUDIO = enabled
+
+        status_text = "Audio: Ready" if enabled else "Audio: Disabled"
+        status_color = "green" if enabled else "gray"
+        self.audio_status_label.config(text=status_text, foreground=status_color)
+
+        if self.nav_system.audio_feedback:
+            if enabled:
+                self.nav_system.audio_feedback.speak_status("Audio enabled")
+            else:
+                self.nav_system.audio_feedback.speak_status("Audio disabled")
+
+    def test_audio(self):
+        """Test audio output"""
+        if self.nav_system.audio_feedback:
+            self.nav_system.audio_feedback.test_audio()
+        else:
+            messagebox.showwarning(
+                "Audio Not Available",
+                "Audio system not initialized. Check Piper model installation."
+            )
 
     def toggle_detection(self):
         """Start or stop detection"""
@@ -270,6 +327,11 @@ class NavigationGUI:
         """Handle window close event"""
         if self.is_running:
             self.nav_system.stop()
+
+        # Cleanup audio
+        if self.nav_system.audio_feedback:
+            self.nav_system.audio_feedback.shutdown()
+
         self.root.destroy()
 
     def run(self):

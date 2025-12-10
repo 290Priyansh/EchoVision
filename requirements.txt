@@ -1,5 +1,5 @@
 # Blind Navigation Assistance System - Dependencies
-# Phase 1 Requirements
+# Phase 1 Requirements with Piper TTS Audio
 
 # Core Deep Learning
 torch>=2.0.0
@@ -12,12 +12,12 @@ pillow>=10.0.0
 # Numerical Computing
 numpy>=1.24.0
 
+# Audio - Piper TTS
+piper-tts>=1.2.0
+pyaudio>=0.2.13
+
 # GUI Framework
 # tkinter is included with Python standard library
-
-# Optional: For future audio feedback (Phase 2+)
-# pyttsx3>=2.90
-# playsound>=1.3.0
 
 # Development Tools (Optional)
 # pytest>=7.4.0

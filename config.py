@@ -17,7 +17,7 @@ CAMERA_ORIENTATION = "landscape"  # Fixed for this system
 INFERENCE_WIDTH = 256  # Smaller for speed
 INFERENCE_HEIGHT = 196
 MODEL_NAME = "depth-anything/Depth-Anything-V2-Small-hf"
-DEVICE = "auto"  # "auto", "cuda", or "cpu"
+DEVICE = "cuda"  # "auto", "cuda", or "cpu"
 
 # ============================================
 # DEPTH ESTIMATION SETTINGS
@@ -89,11 +89,30 @@ BUTTON_HEIGHT = 2
 BUTTON_FONT = ("Arial", 12, "bold")
 
 # ============================================
-# AUDIO FEEDBACK SETTINGS (For future phases)
+# AUDIO FEEDBACK SETTINGS - Piper TTS
 # ============================================
-ENABLE_AUDIO = False  # Not implemented in Phase 1
-AUDIO_VOLUME = 0.7
-SPEECH_RATE = 150  # Words per minute
+ENABLE_AUDIO = True  # Master audio switch
+AUDIO_VOLUME = 0.8  # 0.0 to 1.0
+
+# Piper TTS Model Configuration
+PIPER_MODELS_DIR = "./piper_models"  # Directory for voice models
+PIPER_MODEL_PATH = "./piper_models/en_US-lessac-medium.onnx"  # Default voice
+PIPER_CONFIG_PATH = "./piper_models/en_US-lessac-medium.onnx.json"  # Model config
+
+# Available voice options (download from Piper releases):
+# - en_US-lessac-medium (female, clear) - RECOMMENDED
+# - en_US-ryan-medium (male, warm)
+# - en_GB-alan-medium (British male)
+# - en_GB-jenny_dioco-medium (British female)
+
+# Speech timing control
+SPEECH_COOLDOWN_MS = 2000  # Minimum time between guidance messages (ms)
+REPEAT_SAME_MESSAGE = False  # Repeat if same guidance multiple times
+
+# Message priority settings
+SPEAK_ON_STATUS_CHANGE = True  # Announce "Detection started", etc.
+SPEAK_ON_CLEAR_PATH = False  # Announce "Path clear" (can be annoying)
+SPEAK_CONTINUOUS = False  # If True, repeat guidance continuously
 
 # ============================================
 # DETECTION SENSITIVITY PRESETS

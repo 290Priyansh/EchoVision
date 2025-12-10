@@ -1,15 +1,25 @@
 # Blind Navigation Assistance System 
 
-A production-ready assistive navigation system for blind individuals using real-time computer vision and depth estimation. The system analyzes camera feed in landscape orientation, detects objects, and provides spatial guidance.
+A production-ready assistive navigation system for blind individuals using real-time computer vision, depth estimation, and **high-quality voice guidance**. The system analyzes camera feed in landscape orientation, detects objects, and provides spatial audio feedback using **Piper TTS**.
 
 ## 🎯 Project Overview
 
-This Phase 1 implementation provides:
+This implementation provides:
 - Real-time depth estimation using Depth-Anything V2
 - Landscape-oriented display divided into 3 vertical regions (LEFT, CENTER, RIGHT)
+- **High-quality voice guidance using Piper TTS** (neural text-to-speech)
 - Configurable object detection with adjustable sensitivity
 - Directional guidance with turn angle recommendations
 - Modular, scalable architecture for future enhancements
+
+## ✨ Key Features
+
+- 🎤 **Professional Voice Guidance**: Natural-sounding audio using Piper neural TTS
+- 📹 **Real-time Object Detection**: 30 FPS depth estimation and spatial analysis
+- 🎯 **Precise Directional Instructions**: "Object on left, move right by 45 degrees"
+- ⚙️ **Adjustable Sensitivity**: Three presets plus fine-tuning controls
+- 🔊 **Smart Audio Management**: Cooldown timers, message deduplication, priority alerts
+- 🖥️ **User-Friendly GUI**: Tkinter interface with live video and controls
 
 ## 📁 Project Structure
 
@@ -24,8 +34,13 @@ blind-navigation-system/
 ├── guidance_engine.py         # Direction guidance logic
 ├── visualizer.py              # Display overlay module
 ├── gui.py                     # Tkinter GUI interface
+├── audio_feedback.py          # Piper TTS audio module (NEW)
 ├── requirements.txt           # Python dependencies
-└── README.md                  # This file
+├── PIPER_SETUP.md            # Piper TTS installation guide (NEW)
+├── README.md                  # This file
+└── piper_models/              # Voice model files (NEW)
+    ├── en_US-lessac-medium.onnx
+    └── en_US-lessac-medium.onnx.json
 ```
 
 ## 🚀 Quick Start
@@ -37,7 +52,16 @@ blind-navigation-system/
 
 # Install dependencies
 pip install -r requirements.txt
+
+# Download Piper voice model (see PIPER_SETUP.md for details)
+mkdir piper_models
+cd piper_models
+wget https://github.com/rhasspy/piper/releases/download/v1.2.0/en_US-lessac-medium.onnx
+wget https://github.com/rhasspy/piper/releases/download/v1.2.0/en_US-lessac-medium.onnx.json
+cd ..
 ```
+
+**Important**: See **PIPER_SETUP.md** for complete audio setup instructions.
 
 ### 2. Configuration
 
@@ -58,9 +82,15 @@ python main.py
 
 ### Main Controls
 
-- **START DETECTION**: Begins real-time object detection and guidance
+- **START DETECTION**: Begins real-time object detection and voice guidance
 - **STOP DETECTION**: Pauses the system
 - **Sensitivity Presets**: Quick configuration (Low/Medium/High)
+- **Test Audio**: Verify voice output is working
+
+### Audio Controls (NEW)
+
+- **Enable Voice Guidance**: Toggle audio on/off
+- **Test Audio**: Play sample message to verify audio works
 
 ### Adjustable Settings
 
@@ -156,8 +186,9 @@ Object detected in [REGION], move [DIRECTION] by [ANGLE] degrees
 3. **Object Masking**: Identifies objects closer than threshold
 4. **Region Analysis**: Calculates object distribution across 3 regions
 5. **Guidance Generation**: Determines direction and turn angle
-6. **Visualization**: Overlays all information on display
-7. **GUI Update**: Refreshes display at ~30 FPS
+6. **Audio Output**: Speaks guidance using Piper TTS (NEW)
+7. **Visualization**: Overlays all information on display
+8. **GUI Update**: Refreshes display at ~30 FPS
 
 ### Key Algorithms
 
@@ -193,14 +224,16 @@ occupancy_percent = (object_pixels_in_region / total_object_pixels) × 100
 
 ### Planned Features
 
-- **Audio Feedback**: Text-to-speech guidance
-- **Spatial Audio**: 3D sound positioning
-- **Object Classification**: Identify specific object types
-- **Distance Estimation**: Precise distance in meters
+- **Spatial Audio**: 3D sound positioning (object sounds come from its direction)
+- **Haptic Feedback**: Vibration patterns for wearables
+- **Object Classification**: Identify specific object types (person, car, chair)
+- **Distance Estimation**: Precise distance in meters/feet
 - **Path Planning**: Suggest optimal navigation routes
 - **Obstacle Memory**: Remember recently detected obstacles
 - **Mobile App**: Android/iOS companion app
-- **Wearable Integration**: Smart glasses, haptic feedback
+- **Wearable Integration**: Smart glasses support
+- **Multiple Languages**: Voice guidance in 40+ languages
+- **Offline Maps**: Pre-loaded navigation for indoor spaces
 
 ## 🐛 Troubleshooting
 
@@ -220,9 +253,17 @@ occupancy_percent = (object_pixels_in_region / total_object_pixels) × 100
 - Ensure proper lighting in the environment
 
 ### Model Loading Issues
-- Verify internet connection (first run downloads model)
+- Verify internet connection (first run downloads Depth-Anything model)
 - Check `transformers` library version
-- Ensure sufficient disk space (~500MB for model)
+- Ensure sufficient disk space (~500MB for depth model, ~30MB for voice model)
+
+### Audio Not Working
+- Check **PIPER_SETUP.md** for complete installation guide
+- Verify voice model files exist in `piper_models/` directory
+- Test system audio with other applications
+- Click "Test Audio" button in GUI
+- Check `ENABLE_AUDIO = True` in config.py
+- Ensure PyAudio is installed: `pip install pyaudio`
 
 ## 🔒 Safety Considerations
 
@@ -236,11 +277,14 @@ occupancy_percent = (object_pixels_in_region / total_object_pixels) × 100
 
 ## 📝 Technical Specifications
 
-- **Model**: Depth-Anything V2 Small
+- **Depth Model**: Depth-Anything V2 Small
+- **Audio Engine**: Piper TTS (neural text-to-speech)
+- **Voice Model**: en_US-lessac-medium (female, clear)
 - **Input Resolution**: 640×480 (configurable)
 - **Inference Resolution**: 256×196 (for speed)
 - **Target FPS**: 30
-- **Latency**: < 100ms typical
+- **Audio Latency**: 50-150ms
+- **Total Latency**: < 200ms typical
 - **GPU Support**: CUDA-enabled (optional)
 
 ## 🤝 Contributing
