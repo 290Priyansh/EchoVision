@@ -36,8 +36,22 @@ class GuidanceEngine:
             }
         """
         # No objects detected
+
+        """
+           Generate navigation guidance based on region analysis
+           """
+        total_pixels = analysis_result['total_object_pixels']
+        frame_size = 640 * 480  # From config
+        object_percentage = (total_pixels / frame_size) * 100
+
+        # If less than 0.5% of frame is "close objects", path is clear
+        if object_percentage < config.PATH_CLEAR_THRESHOLD:
+            return self._create_clear_message()
+
+        # No objects detected (already filtered by region analyzer)
         if not analysis_result['detected_regions']:
             return self._create_clear_message()
+
 
         # Determine primary region and guidance
         primary_region = analysis_result['primary_region']

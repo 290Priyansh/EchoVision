@@ -76,6 +76,15 @@ class RegionAnalyzer:
         # Count total object pixels
         total_object_pixels = np.sum(mask)
 
+        if total_object_pixels < config.MIN_OBJECT_PIXELS:
+            return {
+                'occupancy': [0.0, 0.0, 0.0],
+                'total_object_pixels': 0,
+                'detected_regions': [],
+                'primary_region': None,
+                'region_pixel_counts': [0, 0, 0]
+            }
+
         if total_object_pixels == 0:
             return {
                 'occupancy': [0.0, 0.0, 0.0],

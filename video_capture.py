@@ -67,6 +67,7 @@ class VideoCapture:
             return False, None
 
         ret, frame = self.cap.read()
+        frame = cv2.flip(frame, 1)
 
         if ret:
             self.frame_count += 1

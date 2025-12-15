@@ -101,6 +101,7 @@ class DepthEstimator:
         Returns:
             Normalized and smoothed depth map (0.0 = close, 1.0 = far)
         """
+
         if not self.initialized:
             raise RuntimeError("DepthEstimator not initialized. Call initialize() first.")
 
@@ -121,6 +122,11 @@ class DepthEstimator:
         with torch.no_grad():
             outputs = self.model(**inputs)
             depth_map = outputs.predicted_depth.squeeze().cpu().numpy()
+        depth_variance = np.var(depth_map)
+
+        if depth_variance < config.MIN_DEPTH_VARIANCE:
+            # Uniform scene - return all far
+            depth_smooth = np.ones_like(depth_map)
 
         # Normalize depth
         depth_norm = self.normalize_depth(depth_map)

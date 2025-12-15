@@ -6,7 +6,7 @@ All tunable parameters are defined here for easy adjustment
 # ============================================
 # CAMERA SETTINGS
 # ============================================
-CAMERA_INDEX = 1  # Change if using different camera
+CAMERA_INDEX = 1 # Change if using different camera
 FRAME_WIDTH = 640
 FRAME_HEIGHT = 480
 CAMERA_ORIENTATION = "landscape"  # Fixed for this system
@@ -44,6 +44,7 @@ MIN_OBJECT_OCCUPANCY_PERCENT = 15.0
 # GUIDANCE SETTINGS
 # ============================================
 # Turn angle recommendations (in degrees)
+PATH_CLEAR_THRESHOLD = 0.5
 TURN_ANGLE_SMALL = 15   # For objects slightly off-center
 TURN_ANGLE_MEDIUM = 30  # For objects moderately off-center
 TURN_ANGLE_LARGE = 45   # For objects significantly off-center
@@ -147,3 +148,28 @@ LOG_LEVEL = "INFO"  # "DEBUG", "INFO", "WARNING", "ERROR"
 TARGET_FPS = 30
 ENABLE_FPS_DISPLAY = True
 ENABLE_DEBUG_OVERLAY = True  # Show region boundaries and statistics
+
+# ============================================
+# FALSE POSITIVE FILTERING
+# ============================================
+
+# FILTER 1: Minimum object size (pixels)
+# Filters out noise and distant small objects
+MIN_OBJECT_PIXELS = 800  # Start here, adjust down if missing real objects
+# 640x480 = 307,200 total pixels
+# 800 = 0.26% of frame
+
+# FILTER 2: Path clear threshold (% of frame with close objects)
+# If less than this, path is considered clear
+PATH_CLEAR_THRESHOLD = 0.5  # 0.5% of frame
+# 0.5% = ~1,536 pixels at 640x480
+
+# FILTER 3: Minimum depth variance (only if needed)
+# If variance is too low, scene is uniform (empty)
+MIN_DEPTH_VARIANCE = 120.0  # Add only if Steps 1&2 aren't enough
+# Lower = more scenes pass (more sensitive)
+# Higher = fewer scenes pass (less sensitive)
+
+# Also adjust these existing settings:
+CLOSE_OBJECT_THRESHOLD = 0.12  # Lower = less sensitive (was 0.20)
+MIN_OBJECT_OCCUPANCY_PERCENT = 20.0  # Higher = larger objects only (was 15.0)
