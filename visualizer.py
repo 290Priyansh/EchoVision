@@ -263,51 +263,59 @@ class Visualizer:
         output = frame.copy()
 
         # Position in top-right corner
-        x_pos = self.frame_width - 250
-        y_pos = 30
+        # Reduced width from 250 to 160
+        box_width = 160
+        x_pos = self.frame_width - box_width
+        y_pos = 15
+        
+        # Reduced font scale from 0.6/0.5 to 0.4
+        font_scale = 0.4
+        line_height = 15
 
-        # Background
+        # Background (tight fit)
         cv2.rectangle(
             output,
-            (x_pos - 10, y_pos - 25),
-            (self.frame_width - 10, y_pos + 120),
+            (x_pos - 5, y_pos - 15),
+            (self.frame_width - 5, y_pos + (6 * line_height) + 5),
             (0, 0, 0),
             -1
         )
 
         # Draw statistics
         cv2.putText(
-            output, "Detection Stats:",
+            output, "Stats:",
             (x_pos, y_pos),
-            config.FONT, 0.6,
+            config.FONT, font_scale,
             (255, 255, 255), 1
         )
 
-        y_pos += 25
+        y_pos += line_height
         cv2.putText(
-            output, f"Total Pixels: {analysis_result['total_object_pixels']}",
+            output, f"Pixels: {analysis_result['total_object_pixels']}",
             (x_pos, y_pos),
-            config.FONT, 0.5,
+            config.FONT, font_scale,
             (200, 200, 200), 1
         )
 
-        y_pos += 20
+        y_pos += line_height
         for i, region_name in enumerate(config.REGION_NAMES):
             occ = analysis_result['occupancy'][i]
+            # Abbreviate region names: LEFT -> L, CENTER -> C, RIGHT -> R
+            short_name = region_name[0]
             cv2.putText(
-                output, f"{region_name}: {occ:.1f}%",
+                output, f"{short_name}: {occ:.1f}%",
                 (x_pos, y_pos),
-                config.FONT, 0.5,
+                config.FONT, font_scale,
                 (200, 200, 200), 1
             )
-            y_pos += 20
+            y_pos += line_height
 
         y_pos += 5
-        detected = ", ".join(analysis_result['detected_regions']) or "None"
+        detected = ", ".join([r[0] for r in analysis_result['detected_regions']]) or "-"
         cv2.putText(
-            output, f"Active: {detected}",
+            output, f"Act: {detected}",
             (x_pos, y_pos),
-            config.FONT, 0.5,
+            config.FONT, font_scale,
             (0, 255, 0), 1
         )
 

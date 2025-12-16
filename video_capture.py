@@ -14,8 +14,15 @@ class VideoCapture:
     def __init__(self):
         """Initialize video capture"""
         self.cap = None
-        self.is_opened = False
+        self.is_opened_flag = False
         self.frame_count = 0
+
+    def is_opened(self):
+        """Check if camera is opened"""
+        return self.is_opened_flag
+
+    def _init_fps_counters(self):
+        """Initialize FPS counters"""
         self.fps = 0
         self.last_fps_time = time.time()
         self.fps_frame_count = 0
@@ -51,7 +58,8 @@ class VideoCapture:
 
         print(f" Camera initialized: {actual_width}x{actual_height}")
 
-        self.is_opened = True
+        self._init_fps_counters()
+        self.is_opened_flag = True
         return True
 
     def read_frame(self):
@@ -63,17 +71,18 @@ class VideoCapture:
             - success: Boolean indicating if frame was read
             - frame: BGR image as numpy array, or None if failed
         """
-        if not self.is_opened:
+        if not self.is_opened_flag:
             return False, None
 
         ret, frame = self.cap.read()
-        frame = cv2.flip(frame, 1)
+        frame = cv2.flip(frame,1)
 
-        if ret:
+        if ret and frame is not None:
+            frame = cv2.flip(frame, 1)
             self.frame_count += 1
             self.fps_frame_count += 1
             self._update_fps()
-
+        
         return ret, frame
 
     def _update_fps(self):
@@ -109,7 +118,7 @@ class VideoCapture:
         """Release camera resources"""
         if self.cap is not None:
             self.cap.release()
-            self.is_opened = False
+            self.is_opened_flag = False
             print("Camera released")
 
     def __del__(self):

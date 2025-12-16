@@ -67,15 +67,17 @@ class RegionAnalyzer:
         Returns:
             Dictionary with region analysis:
             {
-                'occupancy': [left_%, center_%, right_%],
+                'occupancy': [left_%, center_%, right_%],  # % of REGION covered
                 'total_object_pixels': int,
                 'detected_regions': [region_names],
-                'primary_region': region_name
+                'primary_region': region_name,
+                'region_pixel_counts': [pixels in each region]
             }
         """
         # Count total object pixels
         total_object_pixels = np.sum(mask)
 
+        # NEW: Ignore if too few pixels (noise filter)
         if total_object_pixels < config.MIN_OBJECT_PIXELS:
             return {
                 'occupancy': [0.0, 0.0, 0.0],
@@ -85,25 +87,24 @@ class RegionAnalyzer:
                 'region_pixel_counts': [0, 0, 0]
             }
 
-        if total_object_pixels == 0:
-            return {
-                'occupancy': [0.0, 0.0, 0.0],
-                'total_object_pixels': 0,
-                'detected_regions': [],
-                'primary_region': None
-            }
-
         # Calculate occupancy for each region
         occupancy = []
         region_pixel_counts = []
 
         for x_start, x_end in self.region_boundaries:
+            # Extract this region from the mask
             region_mask = mask[:, x_start:x_end]
+
+            # Count object pixels in this region
             region_pixels = np.sum(region_mask)
             region_pixel_counts.append(region_pixels)
 
-            # Calculate percentage of total object pixels in this region
-            occupancy_percent = (region_pixels / total_object_pixels) * 100.0
+            # NEW: Calculate % of THIS REGION that is covered by objects
+            region_width = x_end - x_start
+            region_total_pixels = self.frame_height * region_width
+
+            # Percentage of region covered
+            occupancy_percent = (region_pixels / region_total_pixels) * 100.0
             occupancy.append(occupancy_percent)
 
         # Determine which regions have significant object presence
@@ -112,7 +113,7 @@ class RegionAnalyzer:
             if occ >= config.MIN_OBJECT_OCCUPANCY_PERCENT:
                 detected_regions.append(self.get_region_name(i))
 
-        # Find primary region (highest occupancy)
+        # Find primary region (highest coverage %)
         primary_region_idx = np.argmax(occupancy)
         primary_region = self.get_region_name(primary_region_idx)
 

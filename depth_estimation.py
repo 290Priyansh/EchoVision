@@ -61,6 +61,13 @@ class DepthEstimator:
         """
         depth_min = depth_map.min()
         depth_max = depth_map.max()
+        # NEW: Safety check - if range is too narrow, something is wrong
+        depth_range = depth_max - depth_min
+
+        if depth_range < 0.01:  # Very narrow range
+            # Return all "far" - scene is too uniform
+            print("  [WARNING] Depth range too narrow, returning 'far' map")
+            return np.ones_like(depth_map)
 
         if depth_max - depth_min > 0:
             # Standard normalization

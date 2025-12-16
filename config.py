@@ -35,10 +35,21 @@ SMOOTHING_FRAMES = 2
 # Screen is divided into 3 vertical regions in landscape mode
 NUM_REGIONS = 3
 REGION_NAMES = ["LEFT", "CENTER", "RIGHT"]
+# CENTER region is priority - if clear, path is safe
+CENTER_CLEAR_THRESHOLD = 5.0  # If CENTER has < 5% occupancy, it's "clear"
 
+# Side regions only alert if they have MAJOR presence
+SIDE_ALERT_THRESHOLD = 10.0  # Side must have > 10% occupancy to alert
+
+# Minimum object size (keep this)
+MIN_OBJECT_PIXELS = 800
+
+# Path clear if less than this % of frame is close objects
+PATH_CLEAR_THRESHOLD = 0.5
 # Minimum percentage of object pixels that must be in a region to trigger detection
+
 # E.g., 15% means at least 15% of the object must occupy a region
-MIN_OBJECT_OCCUPANCY_PERCENT = 15.0
+MIN_OBJECT_OCCUPANCY_PERCENT = 10.0
 
 # ============================================
 # GUIDANCE SETTINGS
@@ -51,8 +62,8 @@ TURN_ANGLE_LARGE = 45   # For objects significantly off-center
 
 # Distance categories (based on normalized depth)
 DISTANCE_VERY_CLOSE = 0.15  # < 0.15
-DISTANCE_CLOSE = 0.25       # 0.15 - 0.25
-DISTANCE_MODERATE = 0.40    # 0.25 - 0.40
+DISTANCE_CLOSE = 0.40       # 0.15 - 0.25
+DISTANCE_MODERATE = 0.70    # 0.25 - 0.40
 # > 0.40 is considered far
 
 # Priority for multi-region detection
@@ -72,8 +83,8 @@ ALERT_ALPHA = 0.5          # Transparency (0.0 - 1.0)
 
 # Text display settings
 FONT = 0  # cv2.FONT_HERSHEY_SIMPLEX
-FONT_SCALE = 0.7
-FONT_THICKNESS = 2
+FONT_SCALE = 0.6
+FONT_THICKNESS = 1
 TEXT_COLOR = (0, 255, 0)  # Green
 
 # ============================================
@@ -96,18 +107,17 @@ ENABLE_AUDIO = True  # Master audio switch
 AUDIO_VOLUME = 0.8  # 0.0 to 1.0
 
 # Piper TTS Model Configuration
+import languages
+DEFAULT_LANGUAGE = languages.LANG_ENGLISH
 PIPER_MODELS_DIR = "./piper_models"  # Directory for voice models
-PIPER_MODEL_PATH = "./piper_models/en_US-lessac-medium.onnx"  # Default voice
-PIPER_CONFIG_PATH = "./piper_models/en_US-lessac-medium.onnx.json"  # Model config
 
-# Available voice options (download from Piper releases):
-# - en_US-lessac-medium (female, clear) - RECOMMENDED
-# - en_US-ryan-medium (male, warm)
-# - en_GB-alan-medium (British male)
-# - en_GB-jenny_dioco-medium (British female)
+# Current Language Settings (can be overridden at runtime)
+CURRENT_LANGUAGE = DEFAULT_LANGUAGE
+PIPER_MODEL_PATH = languages.MODEL_PATHS[DEFAULT_LANGUAGE]["model"]
+PIPER_CONFIG_PATH = languages.MODEL_PATHS[DEFAULT_LANGUAGE]["config"]
 
 # Speech timing control
-SPEECH_COOLDOWN_MS = 2000  # Minimum time between guidance messages (ms)
+SPEECH_COOLDOWN_MS = 300  # Fast response - 0.3 seconds
 REPEAT_SAME_MESSAGE = False  # Repeat if same guidance multiple times
 
 # Message priority settings
@@ -169,7 +179,3 @@ PATH_CLEAR_THRESHOLD = 0.5  # 0.5% of frame
 MIN_DEPTH_VARIANCE = 120.0  # Add only if Steps 1&2 aren't enough
 # Lower = more scenes pass (more sensitive)
 # Higher = fewer scenes pass (less sensitive)
-
-# Also adjust these existing settings:
-CLOSE_OBJECT_THRESHOLD = 0.12  # Lower = less sensitive (was 0.20)
-MIN_OBJECT_OCCUPANCY_PERCENT = 20.0  # Higher = larger objects only (was 15.0)

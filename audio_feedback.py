@@ -71,28 +71,59 @@ class AudioFeedback:
             self.initialized = True
 
             # Start worker thread for non-blocking speech
-            self.worker_thread = threading.Thread(
-                target=self._speech_worker,
-                daemon=True
-            )
-            self.worker_thread.start()
+            if self.worker_thread is None or not self.worker_thread.is_alive():
+                self.worker_thread = threading.Thread(
+                    target=self._speech_worker,
+                    daemon=True
+                )
+                self.worker_thread.start()
 
-            print(f"✅ Piper TTS audio initialized (sample rate: {self.voice.config.sample_rate} Hz)")
+            print(f"✅ Piper TTS audio initialized")
 
             # Welcome message
-            self.speak("Navigation system ready", priority=True)
+            # self.speak("Navigation system ready", priority=True) # Moving this to caller
 
             return True
-
-        except FileNotFoundError as e:
-            print(f"❌ {e}")
-            print("   Download from: https://huggingface.co/rhasspy/piper-voices")
-            return False
 
         except Exception as e:
             print(f"❌ Audio initialization failed: {e}")
             import traceback
             traceback.print_exc()
+            return False
+
+    def load_model(self, model_path):
+        """
+        Load a specific Piper voice model
+        
+        Args:
+            model_path: Path to .onnx model file
+            
+        Returns:
+            True if successful
+        """
+        try:
+            print(f"Loading Piper model: {model_path}")
+            
+            # Resolve path
+            base_dir = Path(__file__).resolve().parent
+            path_obj = Path(model_path)
+            if not path_obj.is_absolute():
+                path_obj = base_dir / path_obj
+                
+            if not path_obj.exists():
+                print(f"❌ Model file not found: {path_obj}")
+                return False
+                
+            # Load voice
+            new_voice = PiperVoice.load(str(path_obj))
+            
+            # Atomic switch
+            self.voice = new_voice
+            print(f"✅ Switched to voice: {path_obj.name}")
+            return True
+            
+        except Exception as e:
+            print(f"❌ Failed to load voice model: {e}")
             return False
 
     def speak(self, text, priority=False):
@@ -111,10 +142,13 @@ class AudioFeedback:
         if not priority and (current_time - self.last_speech_time) < config.SPEECH_COOLDOWN_MS:
             return
 
-        # Check message deduplication
+        # Check message deduplication - BUT allow "path clear" to reset history
         if not priority and not config.REPEAT_SAME_MESSAGE:
-            if text == self.last_spoken_message:
-                return
+            # If path is now clear, reset last message so we can speak new obstacles
+            if "clear" in text.lower() or "साफ" in text.lower():
+                self.last_spoken_message = ""  # Reset to allow new messages
+            elif text == self.last_spoken_message:
+                return  # Skip identical consecutive messages
 
         if priority:
             # Clear queue for urgent messages

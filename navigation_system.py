@@ -11,7 +11,8 @@ from region_analyzer import RegionAnalyzer
 from guidance_engine import GuidanceEngine
 from visualizer import Visualizer
 from audio_feedback import AudioFeedback
-
+import languages
+import numpy as np
 
 class NavigationSystem:
     """Main navigation system controller"""
@@ -107,11 +108,21 @@ class NavigationSystem:
             if not self.initialize():
                 return False
 
+        # RE-INITIALIZATION FOR RESTART
+        # If video_capture exists but is not opened (released), re-initialize it
+        if self.video_capture is not None and not self.video_capture.is_opened():
+             print("Re-initializing camera...")
+             if not self.video_capture.initialize():
+                 print("❌ Failed to re-initialize camera")
+                 return False
+
         self.is_running = True
 
         # Announce start
         if self.audio_feedback:
-            self.audio_feedback.speak_status("Detection started")
+            # message = "Detection started"
+            # self.audio_feedback.speak_status(message) # Use translation key if desired
+            pass # Skipping auto-announce for now or use translation
 
         print("Navigation system started")
         return True
@@ -142,42 +153,53 @@ class NavigationSystem:
         # Capture frame
         ret, frame = self.video_capture.read_frame()
         if not ret:
+            print("❌ process_frame: Failed to read frame from camera")
             return None
 
         self.current_frame = frame
 
-        # Estimate depth
-        depth_map = self.depth_estimator.estimate_depth(frame)
-        self.current_depth = depth_map
+        try:
+            # Estimate depth
+            depth_map = self.depth_estimator.estimate_depth(frame)
+            self.current_depth = depth_map
 
-        # Get close objects mask
-        mask = self.depth_estimator.get_close_objects_mask(depth_map, self.current_threshold)
-        self.current_mask = mask
+            # === DEBUG: Print depth statistics ===
+            # print(f"Depth stats: Min={depth_map.min():.3f}, Max={depth_map.max():.3f}")
 
-        # Analyze regions
-        analysis = self.region_analyzer.analyze_mask(mask)
-        self.current_analysis = analysis
+            # Get close objects mask
+            mask = self.depth_estimator.get_close_objects_mask(depth_map, self.current_threshold)
+            self.current_mask = mask
 
-        # Get center of mass
-        center_of_mass = self.region_analyzer.get_center_of_mass(mask)
+            # Analyze regions
+            analysis = self.region_analyzer.analyze_mask(mask)
+            self.current_analysis = analysis
 
-        # Generate guidance
-        guidance = self.guidance_engine.generate_guidance(analysis, depth_map, center_of_mass)
-        self.current_guidance = guidance
+            # Get center of mass
+            center_of_mass = self.region_analyzer.get_center_of_mass(mask)
 
-        # Speak guidance if audio enabled
-        if self.audio_feedback and config.ENABLE_AUDIO:
-            self._handle_audio_guidance(guidance)
+            # Generate guidance
+            guidance = self.guidance_engine.generate_guidance(analysis, depth_map, center_of_mass)
+            self.current_guidance = guidance
 
-        return {
-            'frame': frame,
-            'depth_map': depth_map,
-            'mask': mask,
-            'analysis': analysis,
-            'guidance': guidance,
-            'center_of_mass': center_of_mass,
-            'fps': self.video_capture.get_fps()
-        }
+            # Speak guidance if audio enabled
+            if self.audio_feedback and config.ENABLE_AUDIO:
+                self._handle_audio_guidance(guidance)
+
+            return {
+                'frame': frame,
+                'depth_map': depth_map,
+                'mask': mask,
+                'analysis': analysis,
+                'guidance': guidance,
+                'center_of_mass': center_of_mass,
+                'fps': self.video_capture.get_fps()
+            }
+
+        except Exception as e:
+            print(f"❌ Error in process_frame: {e}")
+            import traceback
+            traceback.print_exc()
+            return None
 
     def _handle_audio_guidance(self, guidance):
         """
@@ -233,15 +255,15 @@ class NavigationSystem:
             frame = self.visualizer.draw_center_of_mass(frame, result['center_of_mass'])
 
         # Draw guidance message
-        frame = self.visualizer.draw_guidance_message(frame, result['guidance'])
+        # frame = self.visualizer.draw_guidance_message(frame, result['guidance'])
 
-        # Draw status info
-        frame = self.visualizer.draw_status_info(
-            frame,
-            result['fps'],
-            self.current_threshold,
-            self.is_running
-        )
+        # Draw status info (Handled by GUI overlay now)
+        # frame = self.visualizer.draw_status_info(
+        #     frame,
+        #     result['fps'],
+        #     self.current_threshold,
+        #     self.is_running
+        # )
 
         # Draw statistics
         if show_stats:
@@ -279,6 +301,37 @@ class NavigationSystem:
             'guidance': self.current_guidance
         }
 
+    def set_language(self, language_code):
+        """
+        Set the active language
+        
+        Args:
+            language_code: Language code from languages.py
+        """
+        print(f"Switching language to: {language_code}")
+        
+        # 1. Update config (for static references)
+        # config.CURRENT_LANGUAGE = language_code # Not strictly needed if we pass it around
+        
+        # 2. Update Guidance Engine
+        if self.guidance_engine:
+            self.guidance_engine.set_language(language_code)
+            
+        # 3. Update Audio Feedback (Load new model)
+        if self.audio_feedback and config.ENABLE_AUDIO:
+            # Stop any current speech
+            self.audio_feedback.stop_speaking()
+            self.audio_feedback.speak("Loading language...", priority=True)
+            
+            # Load new model
+            model_info = languages.MODEL_PATHS.get(language_code)
+            if model_info:
+                success = self.audio_feedback.load_model(model_info['model'])
+                if success:
+                    # Announce ready in new language
+                    msg = languages.get_translation(language_code, "system_ready")
+                    self.audio_feedback.speak(msg, priority=True)
+    
     def cleanup(self):
         """Clean up system resources"""
         self.stop()

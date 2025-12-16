@@ -1,24 +1,35 @@
 """
 Guidance Engine Module
-Generates directional instructions based on object detection and region analysis
+Generates directional instructions based on CENTER-FIRST navigation strategy
 """
 
 import config
+import languages
 import numpy as np
 
 
 class GuidanceEngine:
-    """Generates navigation guidance messages"""
+    """Generates navigation guidance messages using CENTER-FIRST strategy"""
 
     def __init__(self):
         """Initialize guidance engine"""
         self.last_guidance = None
         self.guidance_history = []
         self.max_history = 5
+        self.current_language = config.DEFAULT_LANGUAGE
+
+    def set_language(self, language_code):
+        """Set current language for guidance generation"""
+        self.current_language = language_code
 
     def generate_guidance(self, analysis_result, depth_map=None, center_of_mass=None):
         """
-        Generate navigation guidance based on region analysis
+        Generate navigation guidance using CENTER-FIRST strategy
+
+        Strategy:
+        1. If CENTER is clear (< 10% occupancy) → Path clear (safe to walk)
+        2. If CENTER is blocked (>= 10% occupancy) → Alert immediately
+        3. If only SIDES have objects → Only alert if MAJOR presence (> 40%)
 
         Args:
             analysis_result: Dictionary from RegionAnalyzer.analyze_mask()
@@ -26,186 +37,175 @@ class GuidanceEngine:
             center_of_mass: Optional (x, y) tuple for precise positioning
 
         Returns:
-            Dictionary with guidance information:
-            {
-                'message': str,
-                'direction': str,
-                'angle': int,
-                'urgency': str,
-                'detected_regions': list
-            }
+            Dictionary with guidance information
         """
-        # No objects detected
-
-        """
-           Generate navigation guidance based on region analysis
-           """
+        # Check if any objects detected
         total_pixels = analysis_result['total_object_pixels']
-        frame_size = 640 * 480  # From config
+
+        # Quick exit if nothing detected
+        if total_pixels == 0:
+            return self._create_clear_message()
+
+        # Check frame percentage (failsafe for noise)
+        frame_size = 640 * 480
         object_percentage = (total_pixels / frame_size) * 100
 
-        # If less than 0.5% of frame is "close objects", path is clear
         if object_percentage < config.PATH_CLEAR_THRESHOLD:
             return self._create_clear_message()
 
-        # No objects detected (already filtered by region analyzer)
-        if not analysis_result['detected_regions']:
-            return self._create_clear_message()
+        # Get occupancy for each region
+        left_occ = analysis_result['occupancy'][0]
+        center_occ = analysis_result['occupancy'][1]
+        right_occ = analysis_result['occupancy'][2]
 
+        # Debug print (optional - comment out in production)
+        # print(f"[GUIDANCE] Occupancy: L={left_occ:.1f}% C={center_occ:.1f}% R={right_occ:.1f}%")
 
-        # Determine primary region and guidance
-        primary_region = analysis_result['primary_region']
-        detected_regions = analysis_result['detected_regions']
+        # ============================================
+        # STRATEGY 1: Check if CENTER is clear
+        # ============================================
+        if center_occ < config.CENTER_CLEAR_THRESHOLD:
+            # Center is clear - check if sides are dangerously full
 
-        # Generate guidance based on primary region
-        if primary_region == "CENTER":
-            guidance = self._generate_center_guidance(analysis_result, depth_map)
-        elif primary_region == "LEFT":
-            guidance = self._generate_left_guidance(analysis_result, depth_map)
-        elif primary_region == "RIGHT":
-            guidance = self._generate_right_guidance(analysis_result, depth_map)
-        else:
+            if left_occ > config.SIDE_ALERT_THRESHOLD:
+                # Left side has major presence
+                direction = "right"
+                angle = config.TURN_ANGLE_SMALL
+                direction_text = languages.get_translation(self.current_language, 'right')
+                message = languages.get_translation(
+                    self.current_language,
+                    'object_left_side_keep',
+                    direction=direction_text
+                )
+
+                return {
+                    'message': message,
+                    'direction': direction,
+                    'angle': angle,
+                    'urgency': 'low',
+                    'primary_region': 'LEFT',
+                    'detected_regions': analysis_result['detected_regions']
+                }
+
+            if right_occ > config.SIDE_ALERT_THRESHOLD:
+                # Right side has major presence
+                direction = "left"
+                angle = config.TURN_ANGLE_SMALL
+                direction_text = languages.get_translation(self.current_language, 'left')
+                message = languages.get_translation(
+                    self.current_language,
+                    'object_right_side_keep',
+                    direction=direction_text
+                )
+
+                return {
+                    'message': message,
+                    'direction': direction,
+                    'angle': angle,
+                    'urgency': 'low',
+                    'primary_region': 'RIGHT',
+                    'detected_regions': analysis_result['detected_regions']
+                }
+
+            # Center clear, sides not concerning - PATH IS SAFE
             guidance = self._create_clear_message()
+            guidance['detected_regions'] = analysis_result['detected_regions']
+            return guidance
 
-        # Add detected regions info
-        guidance['detected_regions'] = detected_regions
+        # ============================================
+        # STRATEGY 2: CENTER is BLOCKED - Priority Alert!
+        # ============================================
+
+        # Center has significant object presence - determine best direction
+        if left_occ < right_occ:
+            # More space on left, go left
+            if left_occ < config.CENTER_CLEAR_THRESHOLD:
+                # Left is clear
+                angle = config.TURN_ANGLE_MEDIUM
+                direction = "left"
+                direction_text = languages.get_translation(self.current_language, 'left')
+                message = languages.get_translation(
+                    self.current_language,
+                    'object_ahead',
+                    direction=direction_text,
+                    angle=angle
+                )
+                urgency = 'high'
+            else:
+                # Left also has objects, but less than right
+                angle = config.TURN_ANGLE_LARGE
+                direction = "left"
+                direction_text = languages.get_translation(self.current_language, 'left')
+                message = languages.get_translation(
+                    self.current_language,
+                    'object_ahead_both',
+                    direction=direction_text,
+                    angle=angle
+                )
+                urgency = 'high'
+
+        elif right_occ < left_occ:
+            # More space on right, go right
+            if right_occ < config.CENTER_CLEAR_THRESHOLD:
+                # Right is clear
+                angle = config.TURN_ANGLE_MEDIUM
+                direction = "right"
+                direction_text = languages.get_translation(self.current_language, 'right')
+                message = languages.get_translation(
+                    self.current_language,
+                    'object_ahead',
+                    direction=direction_text,
+                    angle=angle
+                )
+                urgency = 'high'
+            else:
+                # Right also has objects, but less than left
+                angle = config.TURN_ANGLE_LARGE
+                direction = "right"
+                direction_text = languages.get_translation(self.current_language, 'right')
+                message = languages.get_translation(
+                    self.current_language,
+                    'object_ahead_both',
+                    direction=direction_text,
+                    angle=angle
+                )
+                urgency = 'high'
+
+        else:
+            # Both sides equally blocked - CRITICAL
+            angle = config.TURN_ANGLE_LARGE
+            direction = "stop"
+            message = languages.get_translation(
+                self.current_language,
+                'object_ahead_stop',
+                angle=angle
+            )
+            urgency = 'critical'
+
+        guidance = {
+            'message': message,
+            'direction': direction,
+            'angle': angle,
+            'urgency': urgency,
+            'primary_region': 'CENTER',
+            'detected_regions': analysis_result['detected_regions']
+        }
 
         # Store in history
         self._add_to_history(guidance)
 
         return guidance
 
-    def _generate_center_guidance(self, analysis_result, depth_map):
-        """Generate guidance for objects in center region"""
-        occupancy = analysis_result['occupancy']
-        center_occ = occupancy[1]  # Index 1 is CENTER
-
-        # Check if object also occupies left or right
-        left_occ = occupancy[0]
-        right_occ = occupancy[2]
-
-        # Determine if object is slightly off-center
-        if left_occ > config.MIN_OBJECT_OCCUPANCY_PERCENT and left_occ > right_occ:
-            # Object slightly in left and center
-            direction = "right"
-            angle = config.TURN_ANGLE_SMALL
-            message = f"Object ahead and slightly left, move {direction} by {angle} degrees"
-        elif right_occ > config.MIN_OBJECT_OCCUPANCY_PERCENT and right_occ > left_occ:
-            # Object slightly in right and center
-            direction = "left"
-            angle = config.TURN_ANGLE_SMALL
-            message = f"Object ahead and slightly right, move {direction} by {angle} degrees"
-        else:
-            # Object directly ahead
-            direction = "left or right"
-            angle = config.TURN_ANGLE_MEDIUM
-            message = f"Object directly ahead, move {direction} by {angle} degrees"
-
-        # Determine urgency based on depth
-        urgency = self._calculate_urgency(depth_map, analysis_result)
-
-        return {
-            'message': message,
-            'direction': direction,
-            'angle': angle,
-            'urgency': urgency,
-            'primary_region': 'CENTER'
-        }
-
-    def _generate_left_guidance(self, analysis_result, depth_map):
-        """Generate guidance for objects in left region"""
-        occupancy = analysis_result['occupancy']
-        left_occ = occupancy[0]
-        center_occ = occupancy[1]
-
-        # Determine angle based on how much is in left vs center
-        if center_occ > config.MIN_OBJECT_OCCUPANCY_PERCENT:
-            # Object spans left and center
-            angle = config.TURN_ANGLE_MEDIUM
-            message = f"Object detected on left side, move right by {angle} degrees"
-        else:
-            # Object mostly in left
-            angle = config.TURN_ANGLE_LARGE
-            message = f"Object detected on left, move right by {angle} degrees"
-
-        urgency = self._calculate_urgency(depth_map, analysis_result)
-
-        return {
-            'message': message,
-            'direction': 'right',
-            'angle': angle,
-            'urgency': urgency,
-            'primary_region': 'LEFT'
-        }
-
-    def _generate_right_guidance(self, analysis_result, depth_map):
-        """Generate guidance for objects in right region"""
-        occupancy = analysis_result['occupancy']
-        right_occ = occupancy[2]
-        center_occ = occupancy[1]
-
-        # Determine angle based on how much is in right vs center
-        if center_occ > config.MIN_OBJECT_OCCUPANCY_PERCENT:
-            # Object spans right and center
-            angle = config.TURN_ANGLE_MEDIUM
-            message = f"Object detected on right side, move left by {angle} degrees"
-        else:
-            # Object mostly in right
-            angle = config.TURN_ANGLE_LARGE
-            message = f"Object detected on right, move left by {angle} degrees"
-
-        urgency = self._calculate_urgency(depth_map, analysis_result)
-
-        return {
-            'message': message,
-            'direction': 'left',
-            'angle': angle,
-            'urgency': urgency,
-            'primary_region': 'RIGHT'
-        }
-
     def _create_clear_message(self):
-        """Create message for clear path"""
+        """Create message for clear path (SILENT)"""
         return {
-            'message': "Path clear",
+            'message': languages.get_translation(self.current_language, 'path_clear'),
             'direction': None,
             'angle': 0,
             'urgency': 'none',
             'primary_region': None,
             'detected_regions': []
         }
-
-    def _calculate_urgency(self, depth_map, analysis_result):
-        """
-        Calculate urgency level based on object proximity
-
-        Args:
-            depth_map: Normalized depth map
-            analysis_result: Region analysis result
-
-        Returns:
-            Urgency level: "critical", "high", "medium", "low"
-        """
-        if depth_map is None:
-            return "medium"
-
-        # Get depth values only where objects exist
-        total_pixels = analysis_result['total_object_pixels']
-        if total_pixels == 0:
-            return "low"
-
-        # Calculate average depth of detected objects
-        # Since we're working with a mask, we need to extract depth values
-        # This is simplified - in practice, pass the mask to this function
-
-        # For now, use threshold-based urgency
-        if analysis_result['total_object_pixels'] > 50000:
-            # Large object detected
-            return "high"
-        elif analysis_result['total_object_pixels'] > 20000:
-            return "medium"
-        else:
-            return "low"
 
     def _add_to_history(self, guidance):
         """Add guidance to history for analysis"""
@@ -215,12 +215,7 @@ class GuidanceEngine:
         self.last_guidance = guidance
 
     def get_guidance_summary(self):
-        """
-        Get summary of recent guidance
-
-        Returns:
-            Dictionary with summary statistics
-        """
+        """Get summary of recent guidance"""
         if not self.guidance_history:
             return {
                 'total_messages': 0,
