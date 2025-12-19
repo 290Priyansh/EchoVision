@@ -1,4 +1,4 @@
-# Blind Navigation Assistance System 
+# EchoVision- Real Time Edge Vision Assistant
 
 A production-ready assistive navigation system for blind individuals using real-time computer vision, depth estimation, and **high-quality voice guidance**. The system analyzes camera feed in landscape orientation, detects objects, and provides spatial audio feedback using **Piper TTS**.
 
