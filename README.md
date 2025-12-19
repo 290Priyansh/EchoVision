@@ -301,17 +301,3 @@ This is a Phase 1 foundation. To extend:
 
 [Specify your license here]
 
-## 👥 Credits
-
-- **Depth Estimation**: Depth-Anything V2 by TikTok/ByteDance
-- **Original Concept**: Based on provided depth detection code
-
-## 📧 Contact
-
-[Your contact information]
-
----
-
-**Version**: 1.0.0 (Phase 1)  
-**Last Updated**: December 2025  
-**Status**: Production Ready
