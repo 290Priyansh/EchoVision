@@ -296,8 +296,3 @@ This is a Phase 1 foundation. To extend:
 3. Update `config.py` with new parameters
 4. Add GUI controls in `gui.py` if needed
 5. Document changes in README
-
-## 📄 License
-
-[Specify your license here]
-
